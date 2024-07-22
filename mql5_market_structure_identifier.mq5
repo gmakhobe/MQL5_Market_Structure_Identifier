@@ -86,6 +86,8 @@ int OnCalculate(const int rates_total,
    ArraySetAsSeries(high, false);
    ArraySetAsSeries(low, false);
    ArraySetAsSeries(time, false);
+   ArraySetAsSeries(arrayOfIndicesWithHighs, false);
+   ArraySetAsSeries(arrayOfIndicesWithLows, false);
    
    ArrayCopy(copyOfHigh, high);
    ArrayCopy(copyOfLow, low);
@@ -308,8 +310,16 @@ bool didDrawAnnotationFromGivenArrayOfHighsAndLows(int &arrayOfIndicesWithHighs[
    
    bool hasExecuted = false;
    
+   if (ArraySize(arrayOfIndicesWithHighs) < 2) {
+         return false;
+      }
+      if (ArraySize(arrayOfIndicesWithLows) < 2) {
+         return false;
+      }
+   
    if (isCurrentInstanceForHighs)
    {
+      
       calculationsForTheHigh_startingPoint = arrayOfIndicesWithLows[ArraySize(arrayOfIndicesWithLows) - 1];
       calculationsForTheHigh_endingPoint = arrayOfIndicesWithHighs[ArraySize(arrayOfIndicesWithHighs) - 1];
        
@@ -323,17 +333,16 @@ bool didDrawAnnotationFromGivenArrayOfHighsAndLows(int &arrayOfIndicesWithHighs[
       }
 
       string objectName = "High-Index_" + IntegerToString(indexOfTheCandlesHigh);
-      return onDrawHighorLowAnnotation(objectName, valueOfTheCandlesHigh, time[indexOfTheCandlesHigh], valueOfTheCandlesHigh, time[indexOfTheCandlesHigh + 5]);
+      return onDrawHighorLowAnnotation(objectName, valueOfTheCandlesHigh, time[indexOfTheCandlesHigh], valueOfTheCandlesHigh, time[indexOfTheCandlesHigh + 3]);
    }
    
    if (isCurrentInstanceForLows)
    {
-      if (ArraySize(arrayOfIndicesWithHighs) < 2) {
-         return false;
-      }
-      
-      calculationsForTheLow_startingPoint = arrayOfIndicesWithHighs[ArraySize(arrayOfIndicesWithHighs) - 2];
+      calculationsForTheLow_startingPoint = arrayOfIndicesWithHighs[ArraySize(arrayOfIndicesWithHighs) - 1];
       calculationsForTheLow_endingPoint = arrayOfIndicesWithLows[ArraySize(arrayOfIndicesWithLows) - 1];
+      
+      Print("Selected Starting Point: ", calculationsForTheLow_startingPoint);
+      Print("Selected Ending Point: ", calculationsForTheLow_endingPoint);
 
       for (int count = calculationsForTheLow_startingPoint; count < calculationsForTheLow_endingPoint; count++)
       {
@@ -345,7 +354,12 @@ bool didDrawAnnotationFromGivenArrayOfHighsAndLows(int &arrayOfIndicesWithHighs[
       }
 
       string objectName = "Low-Index_" + IntegerToString(indexOfTheCandlesLow);
-      return onDrawHighorLowAnnotation(objectName, valueOfTheCandlesLow, time[indexOfTheCandlesLow], valueOfTheCandlesLow, time[indexOfTheCandlesLow + 5]);
+      
+      Print("When printing low");
+      ArrayPrint(arrayOfIndicesWithHighs);
+      ArrayPrint(arrayOfIndicesWithLows);
+      Print("Index of low: ", indexOfTheCandlesLow);
+      return onDrawHighorLowAnnotation(objectName, valueOfTheCandlesLow, time[indexOfTheCandlesLow], valueOfTheCandlesLow, time[indexOfTheCandlesLow + 3]);
    }
    return false;
 }
