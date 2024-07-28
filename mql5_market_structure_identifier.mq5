@@ -10,6 +10,7 @@
 input double   UserDefinedPriceChange=0.10625;
 input int      UserDefinedSharpness=20;
 input ENUM_TIMEFRAMES UserDefinedTimeframe=PERIOD_H1;
+input color UserDefinedAnnotationColor = clrRed;
 
 //--- Tracking Variables
 struct Tracker_CurrentState
@@ -323,6 +324,8 @@ bool onDrawHighorLowAnnotation(string objectName, double initialContactPrice, da
    ObjectSetInteger(chart_ID,objectName,OBJPROP_RAY_LEFT,false);
    ObjectSetInteger(chart_ID,objectName,OBJPROP_RAY_RIGHT,false);
    ObjectSetInteger(chart_ID,objectName,OBJPROP_ZORDER,0);
+   ObjectSetInteger(chart_ID, objectName, OBJPROP_COLOR, UserDefinedAnnotationColor);
+   ObjectSetString(chart_ID, objectName, OBJPROP_TEXT, "From Market Structure Identifier");
 
    return true;
   }
