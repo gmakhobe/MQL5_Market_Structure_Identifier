@@ -9,7 +9,7 @@
 //--- input parameters
 input double   UserDefinedPriceChange=0.10625;
 input int      UserDefinedSharpness=20;
-input ENUM_TIMEFRAMES UserDefinedTimeframe=PERIOD_CURRENT;
+input ENUM_TIMEFRAMES UserDefinedTimeframe=PERIOD_H1;
 
 //--- Tracking Variables
 struct Tracker_CurrentState
@@ -18,16 +18,22 @@ struct Tracker_CurrentState
    double            simpleMovingAverageLatestLow;
    int               simpleMovingAverageLatestHighIndex;
    int               simpleMovingAverageLatestLowIndex;
-   bool              didPriceChangeBearishGreaterThanUserDefinedPriceChange;
-   bool              didPriceChangeBullishGreaterThanUserDefinedPriceChange;
+   bool              didPriceChangeToBearish;
+   bool              didPriceChangeToBullish;
    bool              hasRetracementFromHighStarted;
   };
 
+struct Tracker_PrintingState
+  {
+   bool            canPrintUpperObject;
+   bool            canPrintLowerObject;
+  };
 //--- Terminal Indicator Variables
 double Indicator_SimpleMovingAverage_Data[];
 int Indicator_SimpleMovingAverage_Handler;
 
 Tracker_CurrentState BullishStateTracker;
+Tracker_PrintingState printingStateTracker;
 
 bool IsFirstTimeExecution = true;
 bool IsOverallFirstTimeExecution = true;
@@ -62,9 +68,12 @@ int OnInit()
    BullishStateTracker.simpleMovingAverageLatestHighIndex = 0;
    BullishStateTracker.simpleMovingAverageLatestLow = 0.0;
    BullishStateTracker.simpleMovingAverageLatestLowIndex = 0;
-   BullishStateTracker.didPriceChangeBearishGreaterThanUserDefinedPriceChange = false;
-   BullishStateTracker.didPriceChangeBullishGreaterThanUserDefinedPriceChange = false;
+   BullishStateTracker.didPriceChangeToBearish = false;
+   BullishStateTracker.didPriceChangeToBullish = false;
    BullishStateTracker.hasRetracementFromHighStarted = NULL;
+
+   printingStateTracker.canPrintLowerObject = false;
+   printingStateTracker.canPrintUpperObject = false;
 
    if(!Indicator_SimpleMovingAverage_Handler)
      {
@@ -140,26 +149,32 @@ int OnCalculate(const int rates_total,
       ArrayCopy(copyOfTime, time);
 
       simpleMovingAverageLatestValue = Indicator_SimpleMovingAverage_Data[count];
+      //Print("Most Recent SMA Size: ", ArraySize(Indicator_SimpleMovingAverage_Data), " | Most Recent SMA Value: ", Indicator_SimpleMovingAverage_Data[count], " | Most Recent Loop Count: ", count);
 
       onStateInitialisation(simpleMovingAverageLatestValue, count);
       onRecordNewSimpleMovingAverageHigh(simpleMovingAverageLatestValue, count);
       onPriceRetracementFromSimpleMovingAverageHigh(simpleMovingAverageLatestValue, count);
 
-      if(NormalizeDouble(BufferOfIndicesWithHighs[count], 2) > 1)
+      if(NormalizeDouble(BufferOfIndicesWithHighs[count], 2) > 1 && 
+        printingStateTracker.canPrintUpperObject == true)
         {
          if(didAddValidValuesFromBuffersToArrays(BufferOfIndicesWithHighs, BufferOfIndicesWithLows, arrayOfIndicesWithHighs, arrayOfIndicesWithLows))
            {
             Print("Did Print for highs: ", didDrawAnnotationFromGivenArrayOfHighsAndLows(arrayOfIndicesWithHighs, arrayOfIndicesWithLows, copyOfHigh, copyOfLow, copyOfTime, true, false));
            }
         }
+      printingStateTracker.canPrintUpperObject = false;
 
-      if(NormalizeDouble(BufferOfIndicesWithLows[count], 2) > 1)
+
+      if(NormalizeDouble(BufferOfIndicesWithLows[count], 2) > 1 && 
+         printingStateTracker.canPrintLowerObject == true)
         {
          if(didAddValidValuesFromBuffersToArrays(BufferOfIndicesWithHighs, BufferOfIndicesWithLows, arrayOfIndicesWithHighs, arrayOfIndicesWithLows))
            {
             Print("Did Print for Lows: ", didDrawAnnotationFromGivenArrayOfHighsAndLows(arrayOfIndicesWithHighs, arrayOfIndicesWithLows, copyOfHigh, copyOfLow, copyOfTime, false, true));
            }
         }
+      printingStateTracker.canPrintLowerObject = false;
       
       //-- Free array
       ArrayFree(arrayOfIndicesWithHighs);
@@ -197,8 +212,6 @@ void onRecordNewSimpleMovingAverageHigh(double currentSimpleMovingAverageValue, 
       BullishStateTracker.simpleMovingAverageLatestHigh = currentSimpleMovingAverageValue;
       BullishStateTracker.simpleMovingAverageLatestHighIndex = currentTotalRates;
       BullishStateTracker.hasRetracementFromHighStarted = false;
-      BullishStateTracker.didPriceChangeBearishGreaterThanUserDefinedPriceChange = false;
-      BullishStateTracker.didPriceChangeBullishGreaterThanUserDefinedPriceChange = false;
       }
   }
 
@@ -217,7 +230,7 @@ void onPriceRetracementFromSimpleMovingAverageHigh(double currentSimpleMovingAve
          BullishStateTracker.hasRetracementFromHighStarted = true;
         }
 
-      if(BullishStateTracker.hasRetracementFromHighStarted == true && currentSimpleMovingAverageValue <= BullishStateTracker.simpleMovingAverageLatestLow)
+      if(BullishStateTracker.hasRetracementFromHighStarted == true && currentSimpleMovingAverageValue < BullishStateTracker.simpleMovingAverageLatestLow)
         {
          BullishStateTracker.simpleMovingAverageLatestLow = currentSimpleMovingAverageValue;
          BullishStateTracker.simpleMovingAverageLatestLowIndex = currentTotalRates;
@@ -228,22 +241,32 @@ void onPriceRetracementFromSimpleMovingAverageHigh(double currentSimpleMovingAve
          : Price Percentage Change = 100 - ([Current Price / Highest Price] * 100)
       **/
       double pricePercentageChangeFromHigh = (100 - (BullishStateTracker.simpleMovingAverageLatestLow/BullishStateTracker.simpleMovingAverageLatestHigh) * 100);
-      double pricePercentageChangeFromLow = (100 - (BullishStateTracker.simpleMovingAverageLatestLow/currentSimpleMovingAverageValue) * 100);
-
-      if(pricePercentageChangeFromHigh > UserDefinedPriceChange && BullishStateTracker.didPriceChangeBearishGreaterThanUserDefinedPriceChange == false)
+      /**
+       * Rules to identify if price is now bullish and high can be set
+      **/
+      if(pricePercentageChangeFromHigh > UserDefinedPriceChange &&
+        BullishStateTracker.didPriceChangeToBearish == false &&
+        BullishStateTracker.hasRetracementFromHighStarted == true)
         {
-         BullishStateTracker.didPriceChangeBearishGreaterThanUserDefinedPriceChange = true;
+         BullishStateTracker.didPriceChangeToBearish = true;
          BufferOfIndicesWithHighs[currentTotalRates] = 981105;
+         printingStateTracker.canPrintUpperObject = true;
          }
+     }
 
-      if(pricePercentageChangeFromLow > UserDefinedPriceChange && BullishStateTracker.simpleMovingAverageLatestLow < currentSimpleMovingAverageValue && BullishStateTracker.didPriceChangeBullishGreaterThanUserDefinedPriceChange == false)
+     double pricePercentageChangeFromLow = (100 - (BullishStateTracker.simpleMovingAverageLatestLow/currentSimpleMovingAverageValue) * 100);
+      
+      if(pricePercentageChangeFromLow > UserDefinedPriceChange &&
+        BullishStateTracker.simpleMovingAverageLatestLow < currentSimpleMovingAverageValue && 
+        BullishStateTracker.didPriceChangeToBearish == true)
         {
          BullishStateTracker.simpleMovingAverageLatestHigh = currentSimpleMovingAverageValue;
          BullishStateTracker.simpleMovingAverageLatestHighIndex = currentTotalRates;
-         BullishStateTracker.didPriceChangeBullishGreaterThanUserDefinedPriceChange = true;
+         BullishStateTracker.didPriceChangeToBearish = false;
          BufferOfIndicesWithLows[currentTotalRates] = 981105;
+         printingStateTracker.canPrintLowerObject = true; 
+         onRecordNewSimpleMovingAverageHigh(currentSimpleMovingAverageValue, currentTotalRates);
          }
-     }
   }
 
 //+------------------------------------------------------------------+
@@ -365,13 +388,8 @@ bool didDrawAnnotationFromGivenArrayOfHighsAndLows(int &arrayOfIndicesWithHighs[
 
    if(isCurrentInstanceForHighs)
      {
-      if (arrayOfIndicesWithLows[arrayOfIndicesWithLows_Length - 1] > arrayOfIndicesWithHighs[arrayOfIndicesWithHighs_Length - 1]) {
-        calculationsForTheHigh_startingPoint = arrayOfIndicesWithLows[arrayOfIndicesWithLows_Length - 2];
-        calculationsForTheHigh_endingPoint = arrayOfIndicesWithHighs[arrayOfIndicesWithHighs_Length - 1];  
-      }else {
-        calculationsForTheHigh_startingPoint = arrayOfIndicesWithLows[arrayOfIndicesWithLows_Length - 1];
-        calculationsForTheHigh_endingPoint = arrayOfIndicesWithHighs[arrayOfIndicesWithHighs_Length - 1];
-      }
+      calculationsForTheHigh_startingPoint = arrayOfIndicesWithLows[arrayOfIndicesWithLows_Length - 1];
+      calculationsForTheHigh_endingPoint = arrayOfIndicesWithHighs[arrayOfIndicesWithHighs_Length - 1];
       
       for(int count = calculationsForTheHigh_startingPoint; count < calculationsForTheHigh_endingPoint; count++)
         {
@@ -383,19 +401,15 @@ bool didDrawAnnotationFromGivenArrayOfHighsAndLows(int &arrayOfIndicesWithHighs[
         }
 
       string objectName = "High-Index_" + IntegerToString(indexOfTheCandlesHigh);
+      Print("Object Name: ", objectName, " | Object Init Price & time: ", valueOfTheCandlesHigh, " & ", time[indexOfTheCandlesHigh], " Final time print: ", onGetTimeForTheNextCandlesBasedOnTimeframe(time[indexOfTheCandlesHigh], 3));
       return onDrawHighorLowAnnotation(objectName, valueOfTheCandlesHigh, time[indexOfTheCandlesHigh], valueOfTheCandlesHigh, onGetTimeForTheNextCandlesBasedOnTimeframe(time[indexOfTheCandlesHigh], 3));
      }
 
    if(isCurrentInstanceForLows)
      {
 
-      if (arrayOfIndicesWithLows[arrayOfIndicesWithLows_Length - 1] > arrayOfIndicesWithHighs[arrayOfIndicesWithHighs_Length - 1]) {
-        calculationsForTheLow_startingPoint = arrayOfIndicesWithHighs[arrayOfIndicesWithHighs_Length - 1];
-        calculationsForTheLow_endingPoint = arrayOfIndicesWithLows[arrayOfIndicesWithLows_Length - 1];
-      }else {
-        calculationsForTheLow_startingPoint = arrayOfIndicesWithLows[arrayOfIndicesWithLows_Length - 1];
-        calculationsForTheLow_endingPoint = arrayOfIndicesWithHighs[arrayOfIndicesWithHighs_Length - 1];
-      }
+      calculationsForTheLow_startingPoint = arrayOfIndicesWithHighs[arrayOfIndicesWithHighs_Length - 1];
+      calculationsForTheLow_endingPoint = arrayOfIndicesWithLows[arrayOfIndicesWithLows_Length - 1];
       
       for(int count = calculationsForTheLow_startingPoint; count < calculationsForTheLow_endingPoint; count++)
         {
@@ -405,8 +419,19 @@ bool didDrawAnnotationFromGivenArrayOfHighsAndLows(int &arrayOfIndicesWithHighs[
             indexOfTheCandlesLow = count;
            }
         }
+      if (calculationsForTheLow_startingPoint == calculationsForTheLow_endingPoint)
+      {
+        valueOfTheCandlesLow = low[calculationsForTheLow_startingPoint + 1];
+        indexOfTheCandlesLow = calculationsForTheLow_startingPoint + 1;
+      }
 
       string objectName = "Low-Index_" + IntegerToString(indexOfTheCandlesLow);
+      Print("Object Name: ", objectName, " | Object Init Price & time: ", valueOfTheCandlesLow, " | Size of time: ", ArraySize(time));
+      Print("Highs");
+      ArrayPrint(arrayOfIndicesWithHighs);
+      Print("Lows");
+      ArrayPrint(arrayOfIndicesWithLows);
+      //Print("Object Name: ", objectName, " | Object Init Price & time: ", valueOfTheCandlesLow, " & ", time[indexOfTheCandlesLow], " Final time print: ", onGetTimeForTheNextCandlesBasedOnTimeframe(time[indexOfTheCandlesLow], 3));
       return onDrawHighorLowAnnotation(objectName, valueOfTheCandlesLow, time[indexOfTheCandlesLow], valueOfTheCandlesLow, onGetTimeForTheNextCandlesBasedOnTimeframe(time[indexOfTheCandlesLow], 3));
      }
    return false;
