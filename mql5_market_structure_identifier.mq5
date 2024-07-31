@@ -90,6 +90,75 @@ int OnCalculate(const int       rates_total,
                 const long     &tick_volume[],
                 const long     &volume[],
                 const int      &spread[]) {
+
+    if (UserDefinedTimeframe == Period()) {
+        double copyOfHigh[];
+        double copyOfLow[];
+
+        datetime copyOfTime[];
+
+        ArraySetAsSeries(high, false);
+        ArraySetAsSeries(low, false);
+        ArraySetAsSeries(time, false);
+        ArrayCopy(copyOfHigh, high);
+        ArrayCopy(copyOfLow, low);
+        ArrayCopy(copyOfTime, time);
+
+        onCalculateAccordingUserDefinedChartTimeframe(rates_total, prev_calculated, copyOfHigh, copyOfLow, copyOfTime);
+
+    }
+    else
+    {
+        
+        MqlRates timePriceSeries[];
+
+        datetime startDate = time[0];
+        datetime endDate = time[rates_total - 1];
+
+        double copyOfHigh[];
+        double copyofLow[];
+
+        datetime copyOfTime[];
+
+        if (!CopyRates(Symbol(), UserDefinedTimeframe, startDate, endDate, timePriceSeries))
+        {
+            Print("Failed to copy time price series.");
+            return rates_total;
+        }
+
+        int custom_rates_total = ArraySize(timePriceSeries);
+        
+        ArrayResize(copyOfHigh, custom_rates_total);
+        ArrayResize(copyofLow, custom_rates_total);
+        ArrayResize(copyOfTime, custom_rates_total);
+
+        onCopyMqlRatesToArrays(timePriceSeries, copyOfHigh, copyofLow, copyOfTime);
+
+    }
+    
+    
+    if (IsFirstTimeExecution == false)
+    {
+        onRemoveLoadingMessageDeinit();
+    }
+    return (rates_total);
+}
+
+bool onCopyMqlRatesToArrays(MqlRates &mqlRatesArray[], double &high[], double &low[], datetime &time[])
+{
+
+}
+
+//+------------------------------------------------------------------+
+
+int onCalculateAccordingUserDefinedChartTimeframe(int rates_total,
+                                              int prev_calculated,
+                                              double &copyOfHigh[],
+                                              double &copyOfLow[],
+                                              datetime &copyOfTime[]
+                                              )
+{
+
     int startCountAt;
     int endCountAt;
 
@@ -119,25 +188,12 @@ int OnCalculate(const int       rates_total,
         int arrayOfIndicesWithHighs[];
         int arrayOfIndicesWithLows[];
 
-        double copyOfHigh[];
-        double copyOfLow[];
-
-        datetime copyOfTime[];
-
         ArraySetAsSeries(BufferOfIndicesWithHighs, false);
         ArraySetAsSeries(BufferOfIndicesWithLows, false);
-        ArraySetAsSeries(high, false);
-        ArraySetAsSeries(low, false);
-        ArraySetAsSeries(time, false);
         ArraySetAsSeries(arrayOfIndicesWithHighs, false);
         ArraySetAsSeries(arrayOfIndicesWithLows, false);
 
-        ArrayCopy(copyOfHigh, high);
-        ArrayCopy(copyOfLow, low);
-        ArrayCopy(copyOfTime, time);
-
         simpleMovingAverageLatestValue = Indicator_SimpleMovingAverage_Data[count];
-        // Print("Most Recent SMA Size: ", ArraySize(Indicator_SimpleMovingAverage_Data), " | Most Recent SMA Value: ", Indicator_SimpleMovingAverage_Data[count], " | Most Recent Loop Count: ", count);
 
         onStateInitialisation(simpleMovingAverageLatestValue, count);
         onRecordNewSimpleMovingAverageHigh(simpleMovingAverageLatestValue, count);
@@ -159,22 +215,17 @@ int OnCalculate(const int       rates_total,
         }
         printingStateTracker.canPrintLowerObject = false;
 
-        //-- Free array
         ArrayFree(arrayOfIndicesWithHighs);
         ArrayFree(arrayOfIndicesWithLows);
-        ArrayFree(copyOfHigh);
-        ArrayFree(copyOfLow);
-        ArrayFree(copyOfTime);
+    
     }
-
-    if (IsFirstTimeExecution == false)
-    {
-        onRemoveLoadingMessageDeinit();
-    }
+    //-- Free array
+    ArrayFree(copyOfHigh);
+    ArrayFree(copyOfLow);
+    ArrayFree(copyOfTime);
 
     return (rates_total);
 }
-//+------------------------------------------------------------------+
 
 //+------------------------------------------------------------------+
 //|                                                                  |
@@ -362,7 +413,6 @@ bool didDrawAnnotationFromGivenArrayOfHighsAndLows(int &arrayOfIndicesWithHighs[
         }
 
         string objectName = "High-Index_" + IntegerToString(indexOfTheCandlesHigh);
-        Print("Object Name: ", objectName, " | Object Init Price & time: ", valueOfTheCandlesHigh, " & ", time[indexOfTheCandlesHigh], " Final time print: ", onGetTimeForTheNextCandlesBasedOnTimeframe(time[indexOfTheCandlesHigh], 3));
         return onDrawHighorLowAnnotation(objectName, valueOfTheCandlesHigh, time[indexOfTheCandlesHigh], valueOfTheCandlesHigh, onGetTimeForTheNextCandlesBasedOnTimeframe(time[indexOfTheCandlesHigh], 3));
     }
 
@@ -383,12 +433,6 @@ bool didDrawAnnotationFromGivenArrayOfHighsAndLows(int &arrayOfIndicesWithHighs[
         }
 
         string objectName = "Low-Index_" + IntegerToString(indexOfTheCandlesLow);
-        Print("Object Name: ", objectName, " | Object Init Price & time: ", valueOfTheCandlesLow, " | Size of time: ", ArraySize(time));
-        Print("Highs");
-        ArrayPrint(arrayOfIndicesWithHighs);
-        Print("Lows");
-        ArrayPrint(arrayOfIndicesWithLows);
-        // Print("Object Name: ", objectName, " | Object Init Price & time: ", valueOfTheCandlesLow, " & ", time[indexOfTheCandlesLow], " Final time print: ", onGetTimeForTheNextCandlesBasedOnTimeframe(time[indexOfTheCandlesLow], 3));
         return onDrawHighorLowAnnotation(objectName, valueOfTheCandlesLow, time[indexOfTheCandlesLow], valueOfTheCandlesLow, onGetTimeForTheNextCandlesBasedOnTimeframe(time[indexOfTheCandlesLow], 3));
     }
     return false;
@@ -441,8 +485,6 @@ void onSetLoadingMessageOninit() {
         Print("Failed to get the chart height!");
         return ;
     }
-    Print("x: ", xDistance);
-    Print("y: ", yDistance);
     ObjectSetInteger(ChartID(), name, OBJPROP_XDISTANCE, (xDistance / 3.2));
     ObjectSetInteger(ChartID(), name, OBJPROP_YDISTANCE, (yDistance / 2.2));
     ObjectSetInteger(ChartID(), name, OBJPROP_CORNER, CORNER_LEFT_UPPER);
