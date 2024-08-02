@@ -146,7 +146,7 @@ int OnCalculate(const int       rates_total,
         if(NormalizeDouble(BufferOfIndicesWithHighs[count], 2) > 1 &&
            printingStateTracker.canPrintUpperObject == true) {
             if(didAddValidValuesFromBuffersToArrays(BufferOfIndicesWithHighs, BufferOfIndicesWithLows, arrayOfIndicesWithHighs, arrayOfIndicesWithLows)) {
-                Print("Did Print for highs: ", didDrawAnnotationFromGivenArrayOfHighsAndLows(arrayOfIndicesWithHighs, arrayOfIndicesWithLows, copyOfHigh, copyOfLow, copyOfTime, true, false));
+                Print("Did Print for highs: ", didDrawAnnotationFromGivenArrayOfHighsAndLows(arrayOfIndicesWithHighs, arrayOfIndicesWithLows, copyOfHigh, copyOfLow, copyOfTime, true, false, count));
             }
         }
         printingStateTracker.canPrintUpperObject = false;
@@ -154,7 +154,7 @@ int OnCalculate(const int       rates_total,
         if(NormalizeDouble(BufferOfIndicesWithLows[count], 2) > 1 &&
            printingStateTracker.canPrintLowerObject == true) {
             if(didAddValidValuesFromBuffersToArrays(BufferOfIndicesWithHighs, BufferOfIndicesWithLows, arrayOfIndicesWithHighs, arrayOfIndicesWithLows)) {
-                Print("Did Print for Lows: ", didDrawAnnotationFromGivenArrayOfHighsAndLows(arrayOfIndicesWithHighs, arrayOfIndicesWithLows, copyOfHigh, copyOfLow, copyOfTime, false, true));
+                Print("Did Print for Lows: ", didDrawAnnotationFromGivenArrayOfHighsAndLows(arrayOfIndicesWithHighs, arrayOfIndicesWithLows, copyOfHigh, copyOfLow, copyOfTime, false, true, count));
             }
         }
         printingStateTracker.canPrintLowerObject = false;
@@ -282,13 +282,33 @@ bool onDrawHighorLowAnnotation(string objectName, double initialContactPrice, da
         Print("Failed to print: ", objectName);
     }
 
-    ObjectSetInteger(chart_ID, objectName, OBJPROP_COLOR, clrRed);
     ObjectSetInteger(chart_ID, objectName, OBJPROP_STYLE, STYLE_SOLID);
     ObjectSetInteger(chart_ID, objectName, OBJPROP_WIDTH, 4);
     ObjectSetInteger(chart_ID, objectName, OBJPROP_RAY, false);
     ObjectSetInteger(chart_ID, objectName, OBJPROP_BACK, false);
     ObjectSetInteger(chart_ID, objectName, OBJPROP_RAY_LEFT, false);
     ObjectSetInteger(chart_ID, objectName, OBJPROP_RAY_RIGHT, false);
+    ObjectSetInteger(chart_ID, objectName, OBJPROP_ZORDER, 0);
+    ObjectSetInteger(chart_ID, objectName, OBJPROP_COLOR, UserDefinedAnnotationColor);
+    ObjectSetString(chart_ID, objectName, OBJPROP_TEXT, "From Market Structure Identifier");
+
+    return true;
+}
+
+bool onDrawTriggureCandleAnnotation(datetime dateForAnnotation) {
+    long chart_ID = ChartID();
+    string objectName = "triggerFor" + DoubleToString(UserDefinedPriceChange);
+
+    ObjectDelete(chart_ID, objectName);
+
+    if(!ObjectCreate(chart_ID, objectName, OBJ_VLINE, 0, dateForAnnotation, 0)) {
+        Print("Failed to print: ", objectName);
+    }
+
+    ObjectSetInteger(chart_ID, objectName, OBJPROP_STYLE, STYLE_SOLID);
+    ObjectSetInteger(chart_ID, objectName, OBJPROP_WIDTH, 1);
+    ObjectSetInteger(chart_ID, objectName, OBJPROP_RAY, true);
+    ObjectSetInteger(chart_ID, objectName, OBJPROP_BACK, false);
     ObjectSetInteger(chart_ID, objectName, OBJPROP_ZORDER, 0);
     ObjectSetInteger(chart_ID, objectName, OBJPROP_COLOR, UserDefinedAnnotationColor);
     ObjectSetString(chart_ID, objectName, OBJPROP_TEXT, "From Market Structure Identifier");
@@ -325,7 +345,7 @@ bool didAddValidValuesFromBuffersToArrays(double &bufferOfIndicesWithHighs[], do
 //+------------------------------------------------------------------+
 //|                                                                  |
 //+------------------------------------------------------------------+
-bool didDrawAnnotationFromGivenArrayOfHighsAndLows(int &arrayOfIndicesWithHighs[], int &arrayOfIndicesWithLows[], double &high[], double &low[], datetime &time[], bool isCurrentInstanceForHighs, bool isCurrentInstanceForLows) {
+bool didDrawAnnotationFromGivenArrayOfHighsAndLows(int &arrayOfIndicesWithHighs[], int &arrayOfIndicesWithLows[], double &high[], double &low[], datetime &time[], bool isCurrentInstanceForHighs, bool isCurrentInstanceForLows, int rates_total) {
     //--- Get Candle Stick with the highest high on a given range
     int    indexOfTheCandlesHigh = 0;
     double valueOfTheCandlesHigh = 0;
@@ -361,6 +381,7 @@ bool didDrawAnnotationFromGivenArrayOfHighsAndLows(int &arrayOfIndicesWithHighs[
 
         string objectName = "High-Index_" + IntegerToString(indexOfTheCandlesHigh);
         
+        onDrawTriggureCandleAnnotation(time[rates_total]);
         return onDrawHighorLowAnnotation(objectName, valueOfTheCandlesHigh, time[indexOfTheCandlesHigh], valueOfTheCandlesHigh, onGetTimeForTheNextCandlesBasedOnTimeframe(time[indexOfTheCandlesHigh], 3));
     }
 
@@ -382,6 +403,7 @@ bool didDrawAnnotationFromGivenArrayOfHighsAndLows(int &arrayOfIndicesWithHighs[
 
         string objectName = "Low-Index_" + IntegerToString(indexOfTheCandlesLow);
         
+        onDrawTriggureCandleAnnotation(time[rates_total]);
         return onDrawHighorLowAnnotation(objectName, valueOfTheCandlesLow, time[indexOfTheCandlesLow], valueOfTheCandlesLow, onGetTimeForTheNextCandlesBasedOnTimeframe(time[indexOfTheCandlesLow], 3));
     }
     return false;
