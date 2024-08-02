@@ -76,6 +76,7 @@ int OnInit() {
 
     return (INIT_SUCCEEDED);
 }
+
 //+------------------------------------------------------------------+
 //| Custom indicator iteration function                              |
 //+------------------------------------------------------------------+
@@ -104,7 +105,7 @@ int OnCalculate(const int       rates_total,
     ArraySetAsSeries(Indicator_SimpleMovingAverage_Data, false);
 
     if(IsFirstTimeExecution == true) {
-        startCountAt         = rates_total / 4;
+        startCountAt         = 0;
         endCountAt           = rates_total - 1;
         IsFirstTimeExecution = false;
     } else {
@@ -173,7 +174,6 @@ int OnCalculate(const int       rates_total,
 
     return (rates_total);
 }
-//+------------------------------------------------------------------+
 
 //+------------------------------------------------------------------+
 //|                                                                  |
@@ -321,7 +321,6 @@ bool didAddValidValuesFromBuffersToArrays(double &bufferOfIndicesWithHighs[], do
 
     return true;
 }
-//+------------------------------------------------------------------+
 
 //+------------------------------------------------------------------+
 //|                                                                  |
@@ -361,7 +360,7 @@ bool didDrawAnnotationFromGivenArrayOfHighsAndLows(int &arrayOfIndicesWithHighs[
         }
 
         string objectName = "High-Index_" + IntegerToString(indexOfTheCandlesHigh);
-        Print("Object Name: ", objectName, " | Object Init Price & time: ", valueOfTheCandlesHigh, " & ", time[indexOfTheCandlesHigh], " Final time print: ", onGetTimeForTheNextCandlesBasedOnTimeframe(time[indexOfTheCandlesHigh], 3));
+        
         return onDrawHighorLowAnnotation(objectName, valueOfTheCandlesHigh, time[indexOfTheCandlesHigh], valueOfTheCandlesHigh, onGetTimeForTheNextCandlesBasedOnTimeframe(time[indexOfTheCandlesHigh], 3));
     }
 
@@ -382,12 +381,7 @@ bool didDrawAnnotationFromGivenArrayOfHighsAndLows(int &arrayOfIndicesWithHighs[
         }
 
         string objectName = "Low-Index_" + IntegerToString(indexOfTheCandlesLow);
-        Print("Object Name: ", objectName, " | Object Init Price & time: ", valueOfTheCandlesLow, " | Size of time: ", ArraySize(time));
-        Print("Highs");
-        ArrayPrint(arrayOfIndicesWithHighs);
-        Print("Lows");
-        ArrayPrint(arrayOfIndicesWithLows);
-        // Print("Object Name: ", objectName, " | Object Init Price & time: ", valueOfTheCandlesLow, " & ", time[indexOfTheCandlesLow], " Final time print: ", onGetTimeForTheNextCandlesBasedOnTimeframe(time[indexOfTheCandlesLow], 3));
+        
         return onDrawHighorLowAnnotation(objectName, valueOfTheCandlesLow, time[indexOfTheCandlesLow], valueOfTheCandlesLow, onGetTimeForTheNextCandlesBasedOnTimeframe(time[indexOfTheCandlesLow], 3));
     }
     return false;
@@ -453,4 +447,5 @@ void onSetLoadingMessageOninit() {
     ObjectSetInteger(ChartID(), name, OBJPROP_COLOR, clrRed);
     ObjectSetInteger(ChartID(), name, OBJPROP_ZORDER, 0);
 }
+
 //+------------------------------------------------------------------+
