@@ -46,6 +46,11 @@ double BufferOfIndicesWithLows[];    // Records which candles formed low
 void OnDeinit(const int reason) {
 
     ObjectsDeleteAll(ChartID(), 0, -1);
+    ArrayFree(BufferOfIndicesWithHighs);
+    ArrayFree(BufferOfIndicesWithLows);
+    ArrayFree(Indicator_SimpleMovingAverage_Data);
+    IsOverallFirstTimeExecution = NULL;
+    IsFirstTimeExecution = NULL;
 }
 
 //+------------------------------------------------------------------+
