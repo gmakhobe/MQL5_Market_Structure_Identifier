@@ -9,7 +9,6 @@
 //--- input parameters
 input double          UserDefinedPriceChange     = 0.10625;
 input int             UserDefinedSharpness       = 20;
-input ENUM_TIMEFRAMES UserDefinedTimeframe       = PERIOD_H1;
 input color           UserDefinedAnnotationColor = clrRed;
 
 //--- Tracking Variables
@@ -57,7 +56,7 @@ int OnInit() {
     SetIndexBuffer(0, BufferOfIndicesWithHighs, INDICATOR_DATA);
     SetIndexBuffer(1, BufferOfIndicesWithLows, INDICATOR_DATA);
 
-    Indicator_SimpleMovingAverage_Handler = iMA(Symbol(), UserDefinedTimeframe, UserDefinedSharpness, 0, MODE_SMA, PRICE_CLOSE);
+    Indicator_SimpleMovingAverage_Handler = iMA(Symbol(), Period(), UserDefinedSharpness, 0, MODE_SMA, PRICE_CLOSE);
 
     //--- Initialize tracker
     BullishStateTracker.simpleMovingAverageLatestHigh      = 0.0;
@@ -395,17 +394,17 @@ bool didDrawAnnotationFromGivenArrayOfHighsAndLows(int &arrayOfIndicesWithHighs[
 }
 
 datetime onGetTimeForTheNextCandlesBasedOnTimeframe(datetime currentDate, int numberOfCandles) {
-    if(UserDefinedTimeframe == PERIOD_M5) {
+    if(Period() == PERIOD_M5) {
         return currentDate + ((numberOfCandles * 5) * 60);
-    } else if(UserDefinedTimeframe == PERIOD_M15) {
+    } else if(Period() == PERIOD_M15) {
         return currentDate + ((numberOfCandles * 15) * 60);
-    } else if(UserDefinedTimeframe == PERIOD_M30) {
+    } else if(Period() == PERIOD_M30) {
         return currentDate + ((numberOfCandles * 30) * 60);
-    } else if(UserDefinedTimeframe == PERIOD_H1) {
+    } else if(Period() == PERIOD_H1) {
         return currentDate + ((numberOfCandles * 60) * 60);
-    } else if(UserDefinedTimeframe == PERIOD_H4) {
+    } else if(Period() == PERIOD_H4) {
         return currentDate + ((numberOfCandles * 240) * 60);
-    } else if(UserDefinedTimeframe == PERIOD_D1) {
+    } else if(Period() == PERIOD_D1) {
         return currentDate + ((numberOfCandles * 240) * 60);
     }
 
