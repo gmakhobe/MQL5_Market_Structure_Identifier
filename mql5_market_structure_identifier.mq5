@@ -4,7 +4,7 @@
 //|     https://github.com/gmakhobe/MQL5_Market_Structure_Identifier |
 //+------------------------------------------------------------------+
 //--- Indicator Properties
-#property indicator_buffers 2
+#property indicator_buffers 3
 
 //--- input parameters
 input double          UserDefinedPriceChange     = 0.10625;
@@ -39,6 +39,8 @@ bool IsOverallFirstTimeExecution = true;
 //--- Indicaor Buffers
 double BufferOfIndicesWithHighs[];   // Records which candles formed highs
 double BufferOfIndicesWithLows[];    // Records which candles formed low
+double BufferLatestPricePrint[]; // 1 = high has been printed & -1 = Low has been printed
+double LatestPricePrintHelper = 0; // 1 = high has been printed & -1 = Low has been printed
 
 //+------------------------------------------------------------------+
 //| Custom indicator initialization function                         |
@@ -49,6 +51,7 @@ void OnDeinit(const int reason) {
     ArrayFree(BufferOfIndicesWithHighs);
     ArrayFree(BufferOfIndicesWithLows);
     ArrayFree(Indicator_SimpleMovingAverage_Data);
+    ArrayFree(BufferLatestPricePrint);
     IsOverallFirstTimeExecution = NULL;
     IsFirstTimeExecution = NULL;
 }
@@ -60,6 +63,7 @@ int OnInit() {
     onSetLoadingMessageOninit();
     SetIndexBuffer(0, BufferOfIndicesWithHighs, INDICATOR_DATA);
     SetIndexBuffer(1, BufferOfIndicesWithLows, INDICATOR_DATA);
+    SetIndexBuffer(2, BufferLatestPricePrint, INDICATOR_DATA);
 
     Indicator_SimpleMovingAverage_Handler = iMA(Symbol(), Period(), UserDefinedSharpness, 0, MODE_SMA, PRICE_CLOSE);
 
@@ -163,6 +167,7 @@ int OnCalculate(const int       rates_total,
             }
         }
         printingStateTracker.canPrintLowerObject = false;
+        BufferLatestPricePrint[count] = LatestPricePrintHelper;
 
         //-- Free array
         ArrayFree(arrayOfIndicesWithHighs);
@@ -385,6 +390,7 @@ bool didDrawAnnotationFromGivenArrayOfHighsAndLows(int &arrayOfIndicesWithHighs[
         }
 
         string objectName = "High-Index_" + IntegerToString(indexOfTheCandlesHigh);
+        LatestPricePrintHelper = 1;
         
         onDrawTriggureCandleAnnotation(time[rates_total]);
         return onDrawHighorLowAnnotation(objectName, valueOfTheCandlesHigh, time[indexOfTheCandlesHigh], valueOfTheCandlesHigh, onGetTimeForTheNextCandlesBasedOnTimeframe(time[indexOfTheCandlesHigh], 3));
@@ -407,6 +413,7 @@ bool didDrawAnnotationFromGivenArrayOfHighsAndLows(int &arrayOfIndicesWithHighs[
         }
 
         string objectName = "Low-Index_" + IntegerToString(indexOfTheCandlesLow);
+        LatestPricePrintHelper = -1;
         
         onDrawTriggureCandleAnnotation(time[rates_total]);
         return onDrawHighorLowAnnotation(objectName, valueOfTheCandlesLow, time[indexOfTheCandlesLow], valueOfTheCandlesLow, onGetTimeForTheNextCandlesBasedOnTimeframe(time[indexOfTheCandlesLow], 3));
