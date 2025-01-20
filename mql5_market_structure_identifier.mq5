@@ -7,9 +7,10 @@
 #property indicator_buffers 3
 
 //--- input parameters
-input double          UserDefinedPriceChange     = 0.10625;
-input int             UserDefinedSharpness       = 20;
+double          UserDefinedPriceChange     = 0.10625;
+int             UserDefinedSharpness       = 20;
 input color           UserDefinedAnnotationColor = clrRed;
+input bool            UserDefinedDrawHighsAndLows = false;
 
 //--- Tracking Variables
 struct Tracker_CurrentState {
@@ -288,21 +289,25 @@ void onSetValidValuesFromBufferToAnArray(int &arrayRef[], double &buffer[], int 
 //+------------------------------------------------------------------+
 bool onDrawHighorLowAnnotation(string objectName, double initialContactPrice, datetime initialContactDate, double lastContactPrice, datetime lastContactDate) {
     long chart_ID = ChartID();
-    if(!ObjectCreate(chart_ID, objectName, OBJ_TREND, 0, initialContactDate, initialContactPrice, lastContactDate, lastContactPrice)) {
-        Print("Failed to print: ", objectName);
-    }
+    
+    if (UserDefinedDrawHighsAndLows){
+    
+      if(!ObjectCreate(chart_ID, objectName, OBJ_TREND, 0, initialContactDate, initialContactPrice, lastContactDate, lastContactPrice)) {
+         Print("Failed to print: ", objectName);
+      }
 
-    ObjectSetInteger(chart_ID, objectName, OBJPROP_STYLE, STYLE_SOLID);
-    ObjectSetInteger(chart_ID, objectName, OBJPROP_WIDTH, 4);
-    ObjectSetInteger(chart_ID, objectName, OBJPROP_RAY, false);
-    ObjectSetInteger(chart_ID, objectName, OBJPROP_BACK, false);
-    ObjectSetInteger(chart_ID, objectName, OBJPROP_RAY_LEFT, false);
-    ObjectSetInteger(chart_ID, objectName, OBJPROP_RAY_RIGHT, false);
-    ObjectSetInteger(chart_ID, objectName, OBJPROP_ZORDER, 0);
-    ObjectSetInteger(chart_ID, objectName, OBJPROP_COLOR, UserDefinedAnnotationColor);
-    ObjectSetString(chart_ID, objectName, OBJPROP_TEXT, "From Market Structure Identifier");
+      ObjectSetInteger(chart_ID, objectName, OBJPROP_STYLE, STYLE_SOLID);
+      ObjectSetInteger(chart_ID, objectName, OBJPROP_WIDTH, 4);
+      ObjectSetInteger(chart_ID, objectName, OBJPROP_RAY, false);
+      ObjectSetInteger(chart_ID, objectName, OBJPROP_BACK, false);
+      ObjectSetInteger(chart_ID, objectName, OBJPROP_RAY_LEFT, false);
+      ObjectSetInteger(chart_ID, objectName, OBJPROP_RAY_RIGHT, false);
+      ObjectSetInteger(chart_ID, objectName, OBJPROP_ZORDER, 0);
+      ObjectSetInteger(chart_ID, objectName, OBJPROP_COLOR, UserDefinedAnnotationColor);
+      ObjectSetString(chart_ID, objectName, OBJPROP_TEXT, "From Market Structure Identifier");
 
-    return true;
+   }
+   return true;
 }
 
 bool onDrawTriggureCandleAnnotation(datetime dateForAnnotation) {
@@ -433,7 +438,7 @@ datetime onGetTimeForTheNextCandlesBasedOnTimeframe(datetime currentDate, int nu
     } else if(Period() == PERIOD_H4) {
         return currentDate + ((numberOfCandles * 240) * 60);
     } else if(Period() == PERIOD_D1) {
-        return currentDate + ((numberOfCandles * 240) * 60);
+        return currentDate + ((numberOfCandles * 1440) * 60);
     }
 
     return currentDate;
